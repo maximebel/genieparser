@@ -1,0 +1,6 @@
+end-interface {
+    interface ge-0/0/2.789;
+}
+description PSA-AWS-LX789;
+ignore-mtu-mismatch;
+
