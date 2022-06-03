@@ -322,23 +322,19 @@ class ShowConfigurationL2circuitSchema(MetaParser):
                 "l2circuit" : {
                     "local-switching" : {
                         "interface" : ListOf(
-                       
-                        {
-                            "name" : str,
-                            "end-interface" : {
-                                "interface" : str
-                            },
-                        "description" : str,
-                        Optional("ignore-mtu-mismatch"):[Any] 
+                            {
+                                "name" : str,
+                                "end-interface" : {
+                                    "interface" : str
+                                },
+                                "description" : str,
+                                Optional("ignore-mtu-mismatch"):[Any]
+                            }
+                        )
                     }
-                    )
-                    
                 }
             }
         }
-
-           
-    }
     }
 
 class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
@@ -359,43 +355,33 @@ class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
         configuration_dict = ret_dict.setdefault('configuration', {})
         localswitching_dict = configuration_dict.setdefault('protocols', {}). \
                     setdefault('l2circuit', {}).setdefault('local-switching', {})
-        interface_dict=localswitching_dict.setdefault('interface',[])
-        
+        interfaces=localswitching_dict.setdefault('interface',[])
+
         interface={
             "name":f"{interface}.{unit}",
-            "end_interface":{}
+            "end-interface":{}
         }
-        
 
-        p3 = re.compile(r'^ +interface +(?P<end_interface>[^;]+);$')
-
-        p4 = re.compile(r'^description +(?P<description>[^;]+);$')
-        
-        
+        p1 = re.compile(r'^interface +(?P<end_interface>[^;]+);$')
+        p2 = re.compile(r'^description +(?P<description>[^;]+);$')
+                
         for line in out.splitlines():
             line = line.strip()
             if not line:
                 continue
-            '''show configuration protocols l2circuit local-switching interface ge-0/0/1.123
-                    end-interface {
-                        interface ge-0/0/2.789;
-                            }
-                    description PSA-AWS-LX789;
-                    ignore-mtu-mismatch;
-                
-                '''
-            m = p3.match(line)
+
+            m = p1.match(line)
             if m:
                 group = m.groupdict()
-                interface['end_interface']['interface']=group['end_interface']
+                interface['end-interface']['interface']=group['end_interface']
                 continue
 
-            m = p4.match(line)
+            m = p2.match(line)
             if m:
                 group = m.groupdict()
-                interface['description']=group['end_interface']
+                interface['description']=group['description']
                 continue
         
-        interface_dict['interface'].append(interface)
+        interfaces.append(interface)
 
         return ret_dict
