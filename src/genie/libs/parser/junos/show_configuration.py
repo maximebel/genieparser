@@ -257,6 +257,7 @@ class ShowConfigurationSchema(MetaParser):
                     "name": str,
                     "unit": {
                         "name": str,
+                        Optional("description"): str,
                         Optional("encapsulation"): str,
                         Optional("vlan-id"): str,
                         Optional("output-vlan-map"): {
@@ -301,5 +302,100 @@ class ShowConfiguration(ShowConfigurationSchema):
                 unit_dict.update({'output-vlan-map': {fields[1]:[None]}})
             else:
                 unit_dict.update({fields[0]: fields[1]})
+
+        return ret_dict
+
+
+
+class ShowConfigurationL2circuitSchema(MetaParser):
+    """ Schema for:
+        show configuration protocols l2circuit local-switching interface {interface}.{unit}
+    """
+
+    schema = {
+        Optional("@xmlns:junos"): str,
+        "configuration": {
+            Optional("@junos:commit-localtime"): str,
+            Optional("@junos:commit-seconds"): str,
+            Optional("@junos:commit-user"): str,
+            "protocols" : {
+                "l2circuit" : {
+                    "local-switching" : {
+                        "interface" : ListOf(
+                       
+                        {
+                            "name" : str,
+                            "end-interface" : {
+                                "interface" : str
+                            },
+                        "description" : str,
+                        Optional("ignore-mtu-mismatch"):[Any] 
+                    }
+                    )
+                    
+                }
+            }
+        }
+
+           
+    }
+    }
+
+class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
+    cli_command = [
+            'show configuration protocols l2circuit local-switching interface {interface}.{unit}'
+    ]
+
+    def cli(self, interface, unit, output=None):
+        if not output:
+            out = self.device.execute(self.cli_command[0].format(
+                    interface=interface,
+                    unit=unit
+            ))
+        else:
+            out = output
+        ret_dict = {}
+
+        configuration_dict = ret_dict.setdefault('configuration', {})
+        localswitching_dict = configuration_dict.setdefault('protocols', {}). \
+                    setdefault('l2circuit', {}).setdefault('local-switching', {})
+        interface_dict=localswitching_dict.setdefault('interface',[])
+        
+        interface={
+            "name":f"{interface}.{unit}",
+            "end_interface":{}
+        }
+        
+
+        p3 = re.compile(r'^ +interface +(?P<end_interface>[^;]+);$')
+
+        p4 = re.compile(r'^description +(?P<description>[^;]+);$')
+        
+        
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            '''show configuration protocols l2circuit local-switching interface ge-0/0/1.123
+                    end-interface {
+                        interface ge-0/0/2.789;
+                            }
+                    description PSA-AWS-LX789;
+                    ignore-mtu-mismatch;
+                
+                '''
+            m = p3.match(line)
+            if m:
+                group = m.groupdict()
+                interface['end_interface']['interface']=group['end_interface']
+                continue
+
+            m = p4.match(line)
+            if m:
+                group = m.groupdict()
+                interface['description']=group['end_interface']
+                continue
+        
+        interface_dict['interface'].append(interface)
 
         return ret_dict
