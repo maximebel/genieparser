@@ -359,7 +359,7 @@ class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
         configuration_dict = ret_dict.setdefault('configuration', {})
         localswitching_dict = configuration_dict.setdefault('protocols', {}). \
                     setdefault('l2circuit', {}).setdefault('local-switching', {})
-        interface_dict=localswitching_dict.setdefault('interface',[])
+        interfaces=localswitching_dict.setdefault('interface',[])
         
         interface={
             "name":f"{interface}.{unit}",
@@ -393,9 +393,9 @@ class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
             m = p4.match(line)
             if m:
                 group = m.groupdict()
-                interface['description']=group['end_interface']
+                interface['description']=group['description']
                 continue
         
-        interface_dict['interface'].append(interface)
+        interfaces.append(interface)
 
         return ret_dict
