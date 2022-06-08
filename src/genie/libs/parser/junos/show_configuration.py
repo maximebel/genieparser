@@ -240,3 +240,66 @@ class ShowConfigurationFamilyBridgeVlanId(ShowConfigurationFamilyBridgeVlanIdSch
                 continue
 
         return ret_dict
+
+class ShowConfigurationSchema(MetaParser):
+    """ Schema for:
+        show configuration interfaces {interface} unit {unit}
+    """
+
+    schema = {
+        Optional("@xmlns:junos"): str,
+        "configuration": {
+            Optional("@junos:commit-localtime"): str,
+            Optional("@junos:commit-seconds"): str,
+            Optional("@junos:commit-user"): str,
+            "interfaces": {
+                "interface": {
+                    "name": str,
+                    "unit": {
+                        "name": str,
+                        Optional("encapsulation"): str,
+                        Optional("vlan-id"): str,
+                        Optional("output-vlan-map"): {
+                            Optional("swap"): ListOf(Any())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+class ShowConfiguration(ShowConfigurationSchema):
+    cli_command = [
+            'show configuration interfaces {interface} unit {unit}'
+    ]
+
+    def cli(self, interface, unit, output=None):
+        if not output:
+            out = self.device.execute(self.cli_command[0].format(
+                    interface=interface,
+                    unit=unit
+            ))
+        else:
+            out = output
+        ret_dict = {}
+
+        configuration_dict = ret_dict.setdefault('configuration', {})
+        interface_dict = configuration_dict.setdefault('interfaces', {}). \
+                    setdefault('interface', {})
+        interface_dict.update({'name': interface})
+        unit_dict = interface_dict.setdefault('unit', {})
+        unit_dict.update({'name': unit})
+
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            # get rid of trailing ;
+            fields = line[:-1].split(' ')
+
+            if fields[0] == "output-vlan-map":
+                unit_dict.update({'output-vlan-map': {fields[1]:[None]}})
+            else:
+                unit_dict.update({fields[0]: fields[1]})
+
+        return ret_dict
