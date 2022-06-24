@@ -260,8 +260,16 @@ class ShowConfigurationSchema(MetaParser):
                         Optional("description"): str,
                         Optional("encapsulation"): str,
                         Optional("vlan-id"): str,
+                        Optional("vlan-tags"): {
+                            Optional("outer"): str,
+                            Optional("inner"): str
+                        },
                         Optional("output-vlan-map"): {
-                            Optional("swap"): ListOf(Any())
+                            Optional("swap-push"): ListOf(Any()),
+                             Optional("swap"): ListOf(Any())
+                        },
+                         Optional("input-vlan-map"): {
+                            Optional("pop"): ListOf(Any())
                         }
                     }
                 }
@@ -290,6 +298,7 @@ class ShowConfiguration(ShowConfigurationSchema):
         interface_dict.update({'name': interface})
         unit_dict = interface_dict.setdefault('unit', {})
         unit_dict.update({'name': unit})
+        vlan_tags_dict = unit_dict.setdefault('vlan-tags', {})
 
         for line in out.splitlines():
             line = line.strip()
@@ -300,6 +309,13 @@ class ShowConfiguration(ShowConfigurationSchema):
 
             if fields[0] == "output-vlan-map":
                 unit_dict.update({'output-vlan-map': {fields[1]:[None]}})
+            elif fields[0] == "input-vlan-map":
+                unit_dict.update({'input-vlan-map': {fields[1]:[None]}})
+            elif fields[0] == "vlan-tags":
+                    
+                vlan_tags_dict.update({fields[1]: fields[2]})
+                vlan_tags_dict.update({fields[3]: fields[4]})
+
             else:
                 unit_dict.update({fields[0]: fields[1]})
 
@@ -309,7 +325,7 @@ class ShowConfiguration(ShowConfigurationSchema):
 
 class ShowConfigurationL2circuitSchema(MetaParser):
     """ Schema for:
-        show configuration protocols l2circuit local-switching interface {interface}.{unit}
+        show configuration protocols l2circuit local-switching interface {interface} unit {unit}
     """
 
     schema = {
@@ -325,9 +341,9 @@ class ShowConfigurationL2circuitSchema(MetaParser):
                             {
                                 "name" : str,
                                 "end-interface" : {
-                                    "interface" : str
+                                    Optional("interface") : str
                                 },
-                                "description" : str,
+                                Optional("description") : str,
                                 Optional("ignore-mtu-mismatch"):[Any]
                             }
                         )
@@ -339,14 +355,13 @@ class ShowConfigurationL2circuitSchema(MetaParser):
 
 class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
     cli_command = [
-            'show configuration protocols l2circuit local-switching interface {interface}.{unit}'
+            'show configuration protocols l2circuit local-switching interface {interface}'
     ]
 
-    def cli(self, interface, unit, output=None):
+    def cli(self, interface, output=None):
         if not output:
             out = self.device.execute(self.cli_command[0].format(
-                    interface=interface,
-                    unit=unit
+                    interface=interface
             ))
         else:
             out = output
@@ -358,8 +373,10 @@ class ShowConfigurationL2circuit(ShowConfigurationL2circuitSchema):
         interfaces=localswitching_dict.setdefault('interface',[])
 
         interface={
-            "name":f"{interface}.{unit}",
-            "end-interface":{}
+            "name":f"{interface}",
+            "end-interface":{
+                "interface": ""
+            }
         }
 
         p1 = re.compile(r'^interface +(?P<end_interface>[^;]+);$')
